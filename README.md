@@ -1,1 +1,3 @@
 # dbms-data-anonymity-differential-privacy
+
+This study compares naive suppression, clustering-based k-anonymity, and t-closeness on the Adult dataset to evaluate privacy-utility trade-offs. All methods achieve k-anonymity (k=5) and eliminate unique records, but differ in performance. Naive suppression removes 77.93% of data, harming utility. Clustering preserves accuracy but generalizes heavily (NCP=0.5671). t-closeness balances utility and privacy with 38% suppression, low NCP (0.2532), and negligible accuracy loss. Clustering yields the lowest re-identification risk (0.0003); naive suppression the highest (0.1137). t-closeness requires more time (13.2s) due to EMD computation. Results guide method selection based on privacy, utility, or efficiency priorities. 
