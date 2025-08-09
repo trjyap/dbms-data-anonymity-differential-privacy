@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 from scipy.stats import wasserstein_distance
 from collections import Counter
+import psutil
+import time
 
 # Load Adult dataset
 columns = [
@@ -16,6 +18,9 @@ df = pd.read_csv(url, names=columns, sep=', ', engine='python', na_values='?')
 # Drop missing values
 df.dropna(inplace=True)
 df.reset_index(drop=True, inplace=True)
+
+# --- Runtime (seconds) ---
+start_time = time.time()
 
 # Keep only quasi-identifiers and sensitive attribute
 quasi_identifiers = ['age', 'workclass', 'education', 'marital-status', 'occupation', 'race', 'sex', 'native-country', 'capital-gain', 'capital-loss']
@@ -171,3 +176,73 @@ print(f"t-closeness accuracy: {acc_tcloseness:.4f}")
 print(f"Accuracy drop: {acc_original - acc_tcloseness:.4f}")
 
 print(f"Final dataset size after k-anonymity + t-closeness: {len(df_tcloseness)}")
+
+# ===================== Privacy & Utility Metrics =====================
+
+# 1. k-anonymity satisfied? (min group size >= k)
+k_anonymity_satisfied = df_tcloseness[quasi_identifiers].value_counts().min() >= 5
+print(f"k-anonymity satisfied? {k_anonymity_satisfied}")
+
+# 2. t-closeness violations (% of equivalence classes where EMD > t)
+def count_t_closeness_violations(df, qi_cols, sensitive_col, t):
+    violation_count = 0
+    total_groups = 0
+    global_dist = get_distribution(df[sensitive_col])
+    unique_vals = sorted(df[sensitive_col].unique())
+    label_to_pos = {val: idx for idx, val in enumerate(unique_vals)}
+    def get_probs(series):
+        dist = series.value_counts(normalize=True).reindex(unique_vals, fill_value=0)
+        return dist.values, np.array([label_to_pos[v] for v in unique_vals])
+    positions = np.array([label_to_pos[v] for v in unique_vals])
+    for _, group in df.groupby(qi_cols):
+        group_probs, _ = get_probs(group[sensitive_col])
+        global_probs, _ = get_probs(df[sensitive_col])
+        emd_dist = wasserstein_distance(positions, positions, global_probs, group_probs)
+        if emd_dist > t:
+            violation_count += 1
+        total_groups += 1
+    return violation_count, total_groups
+
+violations, total_groups = count_t_closeness_violations(df_tcloseness, quasi_identifiers, sensitive, t)
+violation_rate = violations / total_groups if total_groups > 0 else 0
+print(f"t-closeness violations: {violations} ({violation_rate:.2%} of groups)")
+
+# 3. Uniqueness (% of records with a unique QI combination)
+post_suppression_counts = df_tcloseness[quasi_identifiers].value_counts()
+unique_groups = post_suppression_counts[post_suppression_counts == 1]
+uniqueness_rate = len(unique_groups) / len(post_suppression_counts) if len(post_suppression_counts) > 0 else 0
+print(f"Uniqueness rate: {uniqueness_rate:.2%}")
+
+# 4. Re-identification risk estimate (simulated risk)
+risk_per_group = 1 / post_suppression_counts
+risk_per_record = df_tcloseness.set_index(quasi_identifiers).index.map(risk_per_group)
+reid_risk = pd.Series(risk_per_record).mean()
+print(f"Estimated re-identification risk: {reid_risk:.4f}")
+
+# 5. Suppression Rate (% of records removed)
+suppression_rate = (len(df_qi) - len(df_tcloseness)) / len(df_qi)
+print(f"Suppression rate: {suppression_rate:.2%}")
+
+# 6. Information Loss (Normalized Certainty Penalty, NCP)
+ncp_total = 0
+for col in quasi_identifiers:
+    orig_unique = df_qi[col].nunique()
+    anon_unique = df_tcloseness[col].nunique()
+    ncp_col = (orig_unique - anon_unique) / orig_unique if orig_unique > 0 else 0
+    ncp_total += ncp_col
+ncp_avg = ncp_total / len(quasi_identifiers)
+print(f"Information Loss (NCP): {ncp_avg:.4f}")
+
+# 7. Model Accuracy (Predictive performance on income)
+print(f"Original accuracy: {acc_original:.4f}")
+print(f"t-closeness accuracy: {acc_tcloseness:.4f}")
+print(f"Accuracy drop: {acc_original - acc_tcloseness:.4f}")
+
+# 8. Memory Usage (Approximate peak RAM)
+process = psutil.Process()
+mem_usage_mb = process.memory_info().rss / (1024 * 1024)
+print(f"Approximate peak RAM usage: {mem_usage_mb:.2f} MB")
+
+# 9. Runtime (seconds)
+runtime_seconds = time.time() - start_time
+print(f"Runtime (seconds): {runtime_seconds:.2f}")

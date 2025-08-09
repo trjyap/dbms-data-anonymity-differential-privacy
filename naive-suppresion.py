@@ -1,4 +1,7 @@
 import pandas as pd
+import time
+import psutil
+import numpy as np
 
 # Load the data
 columns = [
@@ -19,6 +22,9 @@ df.reset_index(drop=True, inplace=True)
 print(f"Dataset loaded with {len(df)} records.")
 print("First few rows:")
 print(df.head())
+
+# Start timer here
+start_time = time.time()
 
 quasi_identifiers = ['age', 'workclass', 'education', 'marital-status', 'occupation', 'race', 'sex', 'native-country', 'capital-gain', 'capital-loss']
 
@@ -45,6 +51,36 @@ suppression_rate = (original_size - anonymized_size) / original_size
 print(f"Original records: {original_size}")
 print(f"Anonymized records: {anonymized_size}")
 print(f"Suppression rate: {suppression_rate:.2%}")
+
+# 1. k-anonymity satisfied? (min group size >= k)
+k_anonymity_satisfied = post_suppression_counts.min() >= k
+print(f"k-anonymity satisfied? {k_anonymity_satisfied}")
+
+# 2. Uniqueness (% of records with a unique QI combination)
+unique_groups = post_suppression_counts[post_suppression_counts == 1]
+uniqueness_rate = len(unique_groups) / anonymized_size if anonymized_size > 0 else 0
+print(f"Uniqueness rate: {uniqueness_rate:.2%}")
+
+# 3. Re-identification risk estimate (simulated risk)
+# Risk for each record is 1/group size; average over all records
+risk_per_group = 1 / post_suppression_counts
+risk_per_record = df_anonymized.set_index(quasi_identifiers).index.map(risk_per_group)
+reid_risk = pd.Series(risk_per_record).mean()
+print(f"Estimated re-identification risk: {reid_risk:.4f}")
+
+# 4. Suppression Rate (% of records removed)
+# Already printed above as 'suppression_rate'
+
+# 5. Information Loss (Normalized Certainty Penalty, NCP)
+# NCP: For each QI, fraction of unique values lost
+ncp_total = 0
+for col in quasi_identifiers:
+    orig_unique = df[col].nunique()
+    anon_unique = df_anonymized[col].nunique()
+    ncp_col = (orig_unique - anon_unique) / orig_unique if orig_unique > 0 else 0
+    ncp_total += ncp_col
+ncp_avg = ncp_total / len(quasi_identifiers)
+print(f"Information Loss (NCP): {ncp_avg:.4f}")
 
 # ==============================================================================================================
 
@@ -91,3 +127,12 @@ df_anonymized['income'].value_counts().plot(kind='bar', ax=axes[1], title='After
 
 plt.tight_layout()
 plt.show()
+
+# --- Memory Usage (Approximate peak RAM) ---
+process = psutil.Process()
+mem_usage_mb = process.memory_info().rss / (1024 * 1024)
+print(f"Approximate peak RAM usage: {mem_usage_mb:.2f} MB")
+
+# At the end of your script, after all processing:
+runtime_seconds = time.time() - start_time
+print(f"Runtime (seconds): {runtime_seconds:.2f}")
