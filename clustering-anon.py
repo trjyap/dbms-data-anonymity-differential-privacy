@@ -24,7 +24,7 @@ print("First few rows:")
 print(df.head())
 
 # Select quasi-identifiers
-quasi_identifiers = ['age', 'workclass', 'education', 'marital-status', 'occupation', 'race', 'sex', 'native-country']
+quasi_identifiers = ['age', 'workclass', 'education', 'marital-status', 'occupation', 'race', 'sex', 'native-country', 'capital-gain', 'capital-loss']
 
 # Encode categorical variables
 df_encoded = df[quasi_identifiers].copy()

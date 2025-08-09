@@ -20,7 +20,7 @@ print(f"Dataset loaded with {len(df)} records.")
 print("First few rows:")
 print(df.head())
 
-quasi_identifiers = ['age', 'workclass', 'education', 'marital-status', 'occupation', 'race', 'sex', 'native-country']
+quasi_identifiers = ['age', 'workclass', 'education', 'marital-status', 'occupation', 'race', 'sex', 'native-country', 'capital-gain', 'capital-loss']
 
 k = 5
 
