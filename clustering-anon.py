@@ -13,7 +13,7 @@ columns = [
 url = "https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data"
 df = pd.read_csv(url, names=columns, na_values="?", skipinitialspace=True)
 
-# Drop rows with missing values (for simplicity)
+# Drop rows with missing values
 df.dropna(inplace=True)
 
 # Reset index
@@ -24,7 +24,7 @@ print("First few rows:")
 print(df.head())
 
 # Select quasi-identifiers
-quasi_identifiers = ['age', 'education', 'marital-status', 'race', 'sex', 'native-country']
+quasi_identifiers = ['age', 'workclass', 'education', 'marital-status', 'occupation', 'race', 'sex', 'native-country']
 
 # Encode categorical variables
 df_encoded = df[quasi_identifiers].copy()

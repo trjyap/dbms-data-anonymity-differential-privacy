@@ -7,22 +7,20 @@ columns = [
     'capital-gain', 'capital-loss', 'hours-per-week', 'native-country', 'income'
 ]
 
-df = pd.read_csv(
-    'https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data',
-    names=columns,
-    sep=', ',
-    engine='python',
-    na_values='?'  # Mark '?' as NaN
-)
+url = "https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data"
+df = pd.read_csv(url, names=columns, sep=', ', engine='python', na_values='?')
 
-# Drop rows with missing values (common in Adult dataset)
+# Drop rows with missing values
 df.dropna(inplace=True)
 
 # Reset index
 df.reset_index(drop=True, inplace=True)
 
-quasi_identifiers = ['age', 'workclass', 'education', 'marital-status', 
-                     'occupation', 'race', 'sex', 'native-country']
+print(f"Dataset loaded with {len(df)} records.")
+print("First few rows:")
+print(df.head())
+
+quasi_identifiers = ['age', 'workclass', 'education', 'marital-status', 'occupation', 'race', 'sex', 'native-country']
 
 k = 5
 
